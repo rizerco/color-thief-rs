@@ -16,24 +16,24 @@ The implementation itself is a heavily modified
 extern crate rgb;
 
 use std::cmp;
-use std::fmt;
 use std::error;
+use std::fmt;
 use std::u8;
 
 pub use rgb::RGB8 as Color;
 
-const SIGNAL_BITS: i32              = 5; // Use only upper 5 bits of 8 bits.
-const RIGHT_SHIFT: i32              = 8 - SIGNAL_BITS;
-const MULTIPLIER: i32               = 1 << RIGHT_SHIFT;
-const MULTIPLIER_64: f64            = MULTIPLIER as f64;
-const HISTOGRAM_SIZE: usize         = 1 << (3 * SIGNAL_BITS);
-const VBOX_LENGTH: usize            = 1 << SIGNAL_BITS;
-const FRACTION_BY_POPULATION: f64   = 0.75;
-const MAX_ITERATIONS: i32           = 1000;
+const SIGNAL_BITS: i32 = 5; // Use only upper 5 bits of 8 bits.
+const RIGHT_SHIFT: i32 = 8 - SIGNAL_BITS;
+const MULTIPLIER: i32 = 1 << RIGHT_SHIFT;
+const MULTIPLIER_64: f64 = MULTIPLIER as f64;
+const HISTOGRAM_SIZE: usize = 1 << (3 * SIGNAL_BITS);
+const VBOX_LENGTH: usize = 1 << SIGNAL_BITS;
+const FRACTION_BY_POPULATION: f64 = 0.75;
+const MAX_ITERATIONS: i32 = 1000;
 
 /// Represent a color format of an underlying image data.
 #[allow(missing_docs)]
-#[derive(Clone,Copy,PartialEq,Debug)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum ColorFormat {
     Rgb,
     Rgba,
@@ -44,7 +44,7 @@ pub enum ColorFormat {
 
 /// List of all errors.
 #[allow(missing_docs)]
-#[derive(Clone,Copy,PartialEq,Debug)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Error {
     InvalidVBox,
     VBoxCutFailed,
@@ -110,11 +110,7 @@ struct VBox {
 }
 
 impl VBox {
-    fn new(
-        r_min: u8, r_max: u8,
-        g_min: u8, g_max: u8,
-        b_min: u8, b_max: u8,
-    ) -> VBox {
+    fn new(r_min: u8, r_max: u8, g_min: u8, g_max: u8, b_min: u8, b_max: u8) -> VBox {
         VBox {
             r_min: r_min,
             r_max: r_max,
@@ -138,9 +134,9 @@ impl VBox {
 
     /// Get 3 dimensional volume of the color space.
     fn calc_volume(&self) -> i32 {
-          (self.r_max as i32 - self.r_min as i32 + 1)
-        * (self.g_max as i32 - self.g_min as i32 + 1)
-        * (self.b_max as i32 - self.b_min as i32 + 1)
+        (self.r_max as i32 - self.r_min as i32 + 1)
+            * (self.g_max as i32 - self.g_min as i32 + 1)
+            * (self.b_max as i32 - self.b_min as i32 + 1)
     }
 
     /// Get total count of histogram samples.
@@ -187,9 +183,11 @@ impl VBox {
             let r = MULTIPLIER * (self.r_min as i32 + self.r_max as i32 + 1) / 2;
             let g = MULTIPLIER * (self.g_min as i32 + self.g_max as i32 + 1) / 2;
             let b = MULTIPLIER * (self.b_min as i32 + self.b_max as i32 + 1) / 2;
-            Color::new(cmp::min(r, 255) as u8,
-                       cmp::min(g, 255) as u8,
-                       cmp::min(b, 255) as u8)
+            Color::new(
+                cmp::min(r, 255) as u8,
+                cmp::min(g, 255) as u8,
+                cmp::min(b, 255) as u8,
+            )
         }
     }
 
@@ -210,11 +208,7 @@ impl VBox {
     }
 }
 
-fn make_histogram_and_vbox(
-    pixels: &[u8],
-    color_format: ColorFormat,
-    step: u8,
-) -> (VBox, Vec<i32>) {
+fn make_histogram_and_vbox(pixels: &[u8], color_format: ColorFormat, step: u8) -> (VBox, Vec<i32>) {
     let mut histogram: Vec<i32> = (0..HISTOGRAM_SIZE).map(|_| 0).collect();
 
     let mut r_min = u8::MAX;
@@ -241,8 +235,8 @@ fn make_histogram_and_vbox(
 
         i += colors_count * step as usize;
 
-        // If pixel is mostly opaque or white.
-        if a < 125 || (r > 250 && g > 250 && b > 250) {
+        // Ignore mostly transparent pixels.
+        if a < 125 {
             continue;
         }
 
@@ -268,51 +262,33 @@ fn make_histogram_and_vbox(
     (vbox, histogram)
 }
 
-
 /// Extracts r, g, b, a color parts.
-fn color_parts(
-    pixels: &[u8],
-    color_format: ColorFormat,
-    pos: usize,
-) -> (u8, u8, u8, u8) {
+fn color_parts(pixels: &[u8], color_format: ColorFormat, pos: usize) -> (u8, u8, u8, u8) {
     match color_format {
-        ColorFormat::Rgb => {
-            (pixels[pos + 0],
-             pixels[pos + 1],
-             pixels[pos + 2],
-             255)
-        }
-        ColorFormat::Rgba => {
-            (pixels[pos + 0],
-             pixels[pos + 1],
-             pixels[pos + 2],
-             pixels[pos + 3])
-        }
-        ColorFormat::Argb => {
-            (pixels[pos + 1],
-             pixels[pos + 2],
-             pixels[pos + 3],
-             pixels[pos + 0])
-        },
-        ColorFormat::Bgr => {
-            (pixels[pos + 2],
-             pixels[pos + 1],
-             pixels[pos + 0],
-             255)
-        }
-        ColorFormat::Bgra => {
-            (pixels[pos + 2],
-             pixels[pos + 1],
-             pixels[pos + 0],
-             pixels[pos + 3])
-        }
+        ColorFormat::Rgb => (pixels[pos + 0], pixels[pos + 1], pixels[pos + 2], 255),
+        ColorFormat::Rgba => (
+            pixels[pos + 0],
+            pixels[pos + 1],
+            pixels[pos + 2],
+            pixels[pos + 3],
+        ),
+        ColorFormat::Argb => (
+            pixels[pos + 1],
+            pixels[pos + 2],
+            pixels[pos + 3],
+            pixels[pos + 0],
+        ),
+        ColorFormat::Bgr => (pixels[pos + 2], pixels[pos + 1], pixels[pos + 0], 255),
+        ColorFormat::Bgra => (
+            pixels[pos + 2],
+            pixels[pos + 1],
+            pixels[pos + 0],
+            pixels[pos + 3],
+        ),
     }
 }
 
-fn apply_median_cut(
-    histogram: &[i32],
-    vbox: &mut VBox,
-) -> Result<(VBox, Option<VBox>), Error> {
+fn apply_median_cut(histogram: &[i32], vbox: &mut VBox) -> Result<(VBox, Option<VBox>), Error> {
     if vbox.count == 0 {
         return Err(Error::InvalidVBox);
     }
@@ -370,7 +346,11 @@ fn apply_median_cut(
     }
 
     let mut look_ahead_sum: Vec<i32> = (0..VBOX_LENGTH).map(|_| -1).collect();
-    for (i, sum) in partial_sum.iter().enumerate().filter(|&(_, sum)| *sum != -1) {
+    for (i, sum) in partial_sum
+        .iter()
+        .enumerate()
+        .filter(|&(_, sum)| *sum != -1)
+    {
         look_ahead_sum[i] = total - sum;
     }
 
@@ -386,9 +366,9 @@ fn cut(
     total: i32,
 ) -> Result<(VBox, Option<VBox>), Error> {
     let (vbox_min, vbox_max) = match axis {
-        ColorChannel::Red =>   (vbox.r_min as i32, vbox.r_max as i32),
+        ColorChannel::Red => (vbox.r_min as i32, vbox.r_max as i32),
         ColorChannel::Green => (vbox.g_min as i32, vbox.g_max as i32),
-        ColorChannel::Blue =>  (vbox.b_min as i32, vbox.b_max as i32),
+        ColorChannel::Blue => (vbox.b_min as i32, vbox.b_max as i32),
     };
 
     for i in vbox_min..vbox_max + 1 {
@@ -487,7 +467,8 @@ fn iterate<P>(
     target: u8,
     histogram: &[i32],
 ) -> Result<(), Error>
-    where P: FnMut(&VBox, &VBox) -> cmp::Ordering + Copy
+where
+    P: FnMut(&VBox, &VBox) -> cmp::Ordering + Copy,
 {
     let mut color = 1;
 
@@ -510,7 +491,7 @@ fn iterate<P>(
             queue.sort_by(comparator);
 
             if color >= target {
-               break;
+                break;
             }
         }
     }
@@ -536,8 +517,5 @@ fn compare_by_product(a: &VBox, b: &VBox) -> cmp::Ordering {
 
 /// Get reduced-space color index for a pixel.
 fn make_color_index_of(red: u8, green: u8, blue: u8) -> usize {
-    (   ((red as i32) << (2 * SIGNAL_BITS))
-      + ((green as i32) << SIGNAL_BITS)
-      +   blue as i32
-    ) as usize
+    (((red as i32) << (2 * SIGNAL_BITS)) + ((green as i32) << SIGNAL_BITS) + blue as i32) as usize
 }
